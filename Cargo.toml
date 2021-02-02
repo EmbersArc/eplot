@@ -1,0 +1,26 @@
+[package]
+name = "egui_template"
+version = "0.1.0"
+authors = ["Emil Ernerfeldt <emilernerfeldt@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+eframe = "0.8.0" # Gives us egui, epi and web+native backends
+
+serde = { version = "1", features = ["derive"], optional = true }
+
+[features]
+default = []
+http = ["eframe/http"] # Enable if you want to do http requests
+persistence = ["eframe/persistence", "serde"] # Enable if you want to persist app state on shutdown
+
+[profile.release]
+opt-level = 2 # fast and small wasm
+
+# [patch.crates-io]
+# eframe = { path = "../egui/eframe" }
