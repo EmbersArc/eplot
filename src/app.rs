@@ -1,181 +1,86 @@
-use eframe::{egui, epi};
+use eframe::{egui::*, epi};
+use eplot::drawables::{Line, Polygon, Scatter};
+use eplot::graph::{Graph, GraphMemory};
 
-/// We derive Deserialize/Serialize so we can persist app state on shutdown.
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 pub struct TemplateApp {
-    // Example stuff:
-    label: String,
-    value: f32,
-    painting: Painting,
+    start_time: std::time::Instant,
+    graph_memory: GraphMemory,
 }
 
 impl Default for TemplateApp {
     fn default() -> Self {
         Self {
-            // Example stuff:
-            label: "Hello World!".to_owned(),
-            value: 2.7,
-            painting: Default::default(),
+            start_time: std::time::Instant::now(),
+            graph_memory: GraphMemory::default(),
         }
     }
 }
 
 impl epi::App for TemplateApp {
-    fn name(&self) -> &str {
-        "egui template"
-    }
+    fn update(&mut self, ctx: &CtxRef, _frame: &mut epi::Frame<'_>) {
+        ctx.request_repaint();
 
-    /// Called by the framework to load old app state (if any).
-    #[cfg(feature = "persistence")]
-    fn load(&mut self, storage: &dyn epi::Storage) {
-        *self = epi::get_value(storage, epi::APP_KEY).unwrap_or_default()
-    }
+        let start_time = self.start_time.clone();
 
-    /// Called by the frame work to save state before shutdown.
-    #[cfg(feature = "persistence")]
-    fn save(&mut self, storage: &mut dyn epi::Storage) {
-        epi::set_value(storage, epi::APP_KEY, self);
-    }
+        Graph::new("TestPlot", &mut self.graph_memory)
+            .x_axis_label("x-axis label")
+            .y_axis_label("y-axis label") // Not working yet
+            .x_range(-10f32..=10.)
+            .axis_equal(true)
+            .show(ctx, |plot_ui| {
+                let t = std::time::Instant::now()
+                    .duration_since(start_time)
+                    .as_secs_f32();
 
-    /// Called each time the UI needs repainting, which may be many times per second.
-    /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
-    fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
-        let TemplateApp {
-            label,
-            value,
-            painting,
-        } = self;
+                // Line
+                let points: Vec<Pos2> = (-500..=500)
+                    .map(|i| {
+                        let x = i as f32 / 100.;
+                        let y = 3. + (x * 2. + 10. * t).sin();
+                        Pos2::new(x, y)
+                    })
+                    .collect();
+                plot_ui.plot(Line::new(points).color(Color32::GREEN));
 
-        // Examples of how to create different panels and windows.
-        // Pick whichever suits you.
-        // Tip: a good default choice is to just keep the `CentralPanel`.
-        // For inspiration and more examples, go to https://emilk.github.io/egui
+                // Scatter
+                let points: Vec<Pos2> = (-15..=15)
+                    .map(|i| {
+                        let x = i as f32 / 3.;
+                        let y = (3. * t).sin() * (x * 2. + 10.).sin();
+                        Pos2::new(x, y)
+                    })
+                    .collect();
+                plot_ui.plot(
+                    Scatter::new(points)
+                        .fill_color(Color32::RED)
+                        .size(3.)
+                        .stems(true),
+                );
 
-        egui::SidePanel::left("side_panel", 200.0).show(ctx, |ui| {
-            ui.heading("Side Panel");
-
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(label);
-            });
-
-            ui.add(egui::Slider::f32(value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked {
-                *value += 1.0;
-            }
-
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
-                ui.add(
-                    egui::Hyperlink::new("https://github.com/emilk/egui/").text("powered by egui"),
+                // Arrow polygon
+                let points = vec![
+                    Pos2::new(0., 1.) + Vec2::new(0., -4.),
+                    Pos2::new(0., 2.) + Vec2::new(0., -4.),
+                    Pos2::new(2., 0.) + Vec2::new(0., -4.),
+                    Pos2::new(0., -2.) + Vec2::new(0., -4.),
+                    Pos2::new(0., -1.) + Vec2::new(0., -4.),
+                    Pos2::new(-3., -1.) + Vec2::new(0., -4.),
+                    Pos2::new(-3., 1.) + Vec2::new(0., -4.),
+                ];
+                plot_ui.plot(
+                    Polygon::new(points)
+                        .fill_color(Color32::from_rgba_unmultiplied(255, 0, 255, 30))
+                        .stroke(Stroke::new(
+                            1.,
+                            Color32::from_rgba_unmultiplied(255, 0, 255, 255),
+                        )),
                 );
             });
-        });
+    }
 
-        egui::TopPanel::top("top_panel").show(ctx, |ui| {
-            // The top panel is often a good place for a menu bar:
-            egui::menu::bar(ui, |ui| {
-                egui::menu::menu(ui, "File", |ui| {
-                    if ui.button("Quit").clicked {
-                        frame.quit();
-                    }
-                });
-            });
-        });
-
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("egui template");
-            ui.hyperlink("https://github.com/emilk/egui_template");
-            ui.add(egui::github_link_file_line!(
-                "https://github.com/emilk/egui_template/blob/master/",
-                "Direct link to source code."
-            ));
-            egui::warn_if_debug_build(ui);
-
-            ui.separator();
-
-            ui.heading("Central Panel");
-            ui.label("The central panel the region left after adding TopPanel's and SidePanel's");
-            ui.label("It is often a great place for big things, like drawings:");
-
-            ui.heading("Draw with your mouse to paint:");
-            painting.ui_control(ui);
-            egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
-                painting.ui_content(ui);
-            });
-        });
-
-        if false {
-            egui::Window::new("Window").show(ctx, |ui| {
-                ui.label("Windows can be moved by dragging them.");
-                ui.label("They are automatically sized based on contents.");
-                ui.label("You can turn on resizing and scrolling if you like.");
-                ui.label("You would normally chose either panels OR windows.");
-            });
-        }
+    fn name(&self) -> &str {
+        "egui template"
     }
 }
 
 // ----------------------------------------------------------------------------
-
-/// Example code for painting on a canvas with your mouse
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-struct Painting {
-    lines: Vec<Vec<egui::Vec2>>,
-    stroke: egui::Stroke,
-}
-
-impl Default for Painting {
-    fn default() -> Self {
-        Self {
-            lines: Default::default(),
-            stroke: egui::Stroke::new(1.0, egui::Color32::LIGHT_BLUE),
-        }
-    }
-}
-
-impl Painting {
-    pub fn ui_control(&mut self, ui: &mut egui::Ui) -> egui::Response {
-        ui.horizontal(|ui| {
-            egui::stroke_ui(ui, &mut self.stroke, "Stroke");
-            ui.separator();
-            if ui.button("Clear Painting").clicked {
-                self.lines.clear();
-            }
-        })
-        .1
-    }
-
-    pub fn ui_content(&mut self, ui: &mut egui::Ui) -> egui::Response {
-        let (response, painter) =
-            ui.allocate_painter(ui.available_size_before_wrap_finite(), egui::Sense::drag());
-        let rect = response.rect;
-
-        if self.lines.is_empty() {
-            self.lines.push(vec![]);
-        }
-
-        let current_line = self.lines.last_mut().unwrap();
-
-        if response.active {
-            if let Some(mouse_pos) = ui.input().mouse.pos {
-                let canvas_pos = mouse_pos - rect.min;
-                if current_line.last() != Some(&canvas_pos) {
-                    current_line.push(canvas_pos);
-                }
-            }
-        } else if !current_line.is_empty() {
-            self.lines.push(vec![]);
-        }
-
-        let mut shapes = vec![];
-        for line in &self.lines {
-            if line.len() >= 2 {
-                let points: Vec<egui::Pos2> = line.iter().map(|p| rect.min + *p).collect();
-                shapes.push(egui::Shape::line(points, self.stroke));
-            }
-        }
-        painter.extend(shapes);
-
-        response
-    }
-}
