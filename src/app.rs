@@ -20,7 +20,7 @@ impl epi::App for TemplateApp {
     fn update(&mut self, ctx: &CtxRef, _frame: &mut epi::Frame<'_>) {
         ctx.request_repaint();
 
-        let start_time = self.start_time.clone();
+        let start_time = self.start_time;
 
         Graph::new("TestPlot", &mut self.graph_memory)
             .x_axis_label("x-axis label")
