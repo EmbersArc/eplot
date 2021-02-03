@@ -13,12 +13,12 @@ pub struct Graph<'mem> {
 }
 
 pub struct PlotUi {
-    shapes: Vec<Shape>,
+    drawables: Vec<Box<dyn Drawable>>,
 }
 
 impl PlotUi {
-    pub fn plot(&mut self, item: impl Drawable) {
-        self.shapes.append(&mut item.to_shapes());
+    pub fn plot<D: Drawable + 'static>(&mut self, item: D) {
+        self.drawables.push(Box::new(item));
     }
 }
 
@@ -173,13 +173,12 @@ impl<'mem> Graph<'mem> {
             // Dragging
             let new_drag_pos = response.interact_pointer_pos();
             if let Some(pos) = new_drag_pos {
-                let mut pos_tf = pos;
-                Self::transform_position(&mut pos_tf, &painter_rect, &plot_rect);
+                let pos_tf = Self::transform_position(&pos, &painter_rect, &plot_rect);
                 if let Some(last_pos) = last_drag_pos {
                     ui.output().cursor_icon = CursorIcon::Grabbing;
-                    let mut last_pos_tf = last_pos;
-                    Self::transform_position(&mut last_pos_tf, &painter_rect, &plot_rect);
-                    let delta = *last_pos_tf - pos_tf;
+                    let last_pos_tf =
+                        Self::transform_position(&last_pos, &painter_rect, &plot_rect);
+                    let delta = last_pos_tf - pos_tf;
                     *plot_rect = plot_rect.translate(delta);
                 }
                 *last_drag_pos = Some(pos);
@@ -228,8 +227,8 @@ impl<'mem> Graph<'mem> {
                 if tick_pos_x > plot_rect.right() {
                     break;
                 }
-                let mut x_tick = Pos2::new(tick_pos_x, plot_rect.top());
-                Self::transform_position(&mut x_tick, &plot_rect, &painter_rect);
+                let x_tick = Pos2::new(tick_pos_x, plot_rect.top());
+                let x_tick = Self::transform_position(&x_tick, &plot_rect, &painter_rect);
                 painter.line_segment(
                     [x_tick, x_tick - 5. * Vec2::Y],
                     Stroke::new(1.0, Color32::WHITE),
@@ -257,8 +256,8 @@ impl<'mem> Graph<'mem> {
                 if tick_pos_y > plot_rect.bottom() {
                     break;
                 }
-                let mut y_tick = Pos2::new(plot_rect.left(), tick_pos_y);
-                Self::transform_position(&mut y_tick, &plot_rect, &painter_rect);
+                let y_tick = Pos2::new(plot_rect.left(), tick_pos_y);
+                let y_tick = Self::transform_position(&y_tick, &plot_rect, &painter_rect);
                 painter.line_segment(
                     [y_tick, y_tick + 5. * Vec2::X],
                     Stroke::new(1.0, Color32::WHITE),
@@ -281,31 +280,23 @@ impl<'mem> Graph<'mem> {
             painter.set_clip_rect(painter_rect);
 
             // Call the function provided by the user to add the shapes.
-            let mut plot_ui = PlotUi { shapes: Vec::new() };
+            let mut plot_ui = PlotUi {
+                drawables: Vec::new(),
+            };
             add_contents(&mut plot_ui);
 
+            let plot_to_screen =
+                |pos: &Pos2| -> Pos2 { Self::transform_position(pos, &plot_rect, &painter_rect) };
+
             // Transform all shapes
-            plot_ui.shapes.iter_mut().for_each(|shape| match shape {
-                Shape::Noop => {}
-                Shape::Vec(_) => {}
-                Shape::Circle { center, .. } => {
-                    Self::transform_position(center, &plot_rect, &painter_rect)
-                }
-                Shape::LineSegment { points, .. } => points
-                    .iter_mut()
-                    .for_each(|point| Self::transform_position(point, &plot_rect, &painter_rect)),
-                Shape::Path { points, .. } => points
-                    .iter_mut()
-                    .for_each(|point| Self::transform_position(point, &plot_rect, &painter_rect)),
-                Shape::Rect { .. } => {}
-                Shape::Text { pos, .. } => Self::transform_position(pos, &plot_rect, &painter_rect),
-                Shape::Mesh(_) => {}
+            plot_ui.drawables.drain(..).for_each(|drawable| {
+                drawable.paint(&mut painter, &plot_to_screen);
             });
 
             // Show mouse position
             if show_cursor_pos {
-                if let Some(mut mouse_pos) = ui.input().pointer.interact_pos() {
-                    Self::transform_position(&mut mouse_pos, &painter_rect, &plot_rect);
+                if let Some(mouse_pos) = ui.input().pointer.interact_pos() {
+                    let mouse_pos = Self::transform_position(&mouse_pos, &painter_rect, &plot_rect);
                     painter.text(
                         painter_rect.right_bottom() + Vec2::new(-10., -10.),
                         Align2::RIGHT_BOTTOM,
@@ -315,8 +306,6 @@ impl<'mem> Graph<'mem> {
                     );
                 }
             }
-            // Add shapes to the painter
-            painter.extend(plot_ui.shapes);
 
             *first_run = false;
 
@@ -325,13 +314,15 @@ impl<'mem> Graph<'mem> {
     }
 
     /// Transforms a position from one rectangle to another.
-    fn transform_position(pos: &mut Pos2, plot_rect: &Rect, screen_rect: &Rect) {
+    fn transform_position(pos: &Pos2, plot_rect: &Rect, screen_rect: &Rect) -> Pos2 {
         let from_x_range = plot_rect.x_range();
         let from_y_range = plot_rect.y_range();
         let to_x_range = screen_rect.x_range();
         let to_y_range = screen_rect.bottom_up_range();
 
-        pos.x = remap(pos.x, from_x_range, to_x_range);
-        pos.y = remap(pos.y, from_y_range, to_y_range);
+        Pos2::new(
+            remap(pos.x, from_x_range, to_x_range),
+            remap(pos.y, from_y_range, to_y_range),
+        )
     }
 }

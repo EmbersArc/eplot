@@ -4,7 +4,7 @@ use paint::text::Fonts;
 /// Trait shared by everything that can be plotted.
 pub trait Drawable {
     /// Function to turn the drawable item into Shapes.
-    fn to_shapes(self) -> Vec<Shape>;
+    fn paint(&self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2);
 }
 
 /// Text positioned on the plot.
@@ -47,24 +47,25 @@ impl<'a> Text<'a> {
 }
 
 impl<'a> Drawable for Text<'a> {
-    fn to_shapes(self) -> Vec<Shape> {
+    fn paint(&self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2) {
         let Text {
             position,
+            _rotation,
             text,
             color,
             anchor,
             fonts,
-            ..
         } = self;
 
-        vec![Shape::text(
+        // TODO
+        painter.add(Shape::text(
             fonts,
-            position,
-            anchor,
+            transform(position),
+            *anchor,
             text,
             TextStyle::Monospace,
-            color,
-        )]
+            *color,
+        ));
     }
 }
 
@@ -97,20 +98,28 @@ impl Polygon {
 }
 
 impl Drawable for Polygon {
-    fn to_shapes(self) -> Vec<Shape> {
+    fn paint(&self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2) {
         let Self {
             points,
             fill,
             stroke,
-            ..
         } = self;
 
-        vec![Shape::polygon(points, fill, stroke)]
+        painter.add(Shape::polygon(
+            points.iter().map(|p| transform(p)).collect(),
+            *fill,
+            *stroke,
+        ));
     }
 }
 
 pub enum MarkerShape {
     Circle,
+    Triangle,
+    Square,
+    Plus,
+    X,
+    Star,
 }
 
 /// Plot a set of points.
@@ -169,7 +178,7 @@ impl Scatter {
 }
 
 impl Drawable for Scatter {
-    fn to_shapes(self) -> Vec<Shape> {
+    fn paint(&self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2) {
         let Self {
             points,
             fill,
@@ -178,28 +187,47 @@ impl Drawable for Scatter {
             shape,
             stems,
             stems_stroke,
-            ..
         } = self;
 
-        let mut shapes = Vec::with_capacity(if stems { 2 } else { 1 } * points.len());
+        points.iter().for_each(|p| {
+            let p0 = transform(&Pos2::new(p.x, 0.));
+            let p1 = transform(p);
+            if *stems {
+                painter.line_segment([p0, p1], *stems_stroke);
+            }
 
-        if stems {
-            shapes.extend(points.iter().map(|p| Shape::LineSegment {
-                points: [*p, Pos2::new(p.x, 0.)],
-                stroke: stems_stroke,
-            }));
-        }
-
-        shapes.extend(points.iter().map(|p| match shape {
-            MarkerShape::Circle => Shape::Circle {
-                center: *p,
-                radius: size,
-                fill,
-                stroke,
-            },
-        }));
-
-        shapes
+            match shape {
+                MarkerShape::Circle => painter.circle(p1, *size, *fill, *stroke),
+                MarkerShape::Square => painter.rect(
+                    Rect::from_center_size(p1, Vec2::new(2. * size, 2. * size)),
+                    0.,
+                    *fill,
+                    *stroke,
+                ),
+                MarkerShape::Triangle => {
+                    let outer_radius = 1.0 * size;
+                    let inner_radius = 0.5 * size;
+                    let bottom = Vec2::new(0., -outer_radius);
+                    let left = Vec2::new(-3f32.sqrt() / 2. * outer_radius, inner_radius);
+                    let right = Vec2::new(3f32.sqrt() / 2. * outer_radius, inner_radius);
+                    let points = vec![p1 + bottom, p1 + right, p1 + left];
+                    painter.add(Shape::polygon(points, *fill, *stroke));
+                }
+                MarkerShape::Plus => {
+                    let dx = Vec2::new(*size, 0.);
+                    painter.line_segment([p1 - dx, p1 + dx], *stroke);
+                    let dy = dx.rot90();
+                    painter.line_segment([p1 - dy, p1 + dy], *stroke);
+                }
+                MarkerShape::X => {
+                    let diag = Vec2::new(*size, *size) * std::f32::consts::SQRT_2;
+                    painter.line_segment([p1 - diag, p1 + diag], *stroke);
+                    let diag = diag.rot90();
+                    painter.line_segment([p1 - diag, p1 + diag], *stroke);
+                }
+                MarkerShape::Star => {}
+            };
+        });
     }
 }
 
@@ -231,14 +259,16 @@ impl Line {
 }
 
 impl Drawable for Line {
-    fn to_shapes(self) -> Vec<Shape> {
+    fn paint(&self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2) {
         let Self {
             points,
             color,
             weight,
-            ..
         } = self;
 
-        vec![Shape::line(points, Stroke::new(weight, color))]
+        painter.add(Shape::line(
+            points.iter().map(|p| transform(p)).collect(),
+            Stroke::new(*weight, *color),
+        ));
     }
 }

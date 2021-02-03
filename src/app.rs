@@ -1,5 +1,5 @@
 use eframe::{egui::*, epi};
-use eplot::drawables::{Line, Polygon, Scatter};
+use eplot::drawables::{Line, MarkerShape, Polygon, Scatter};
 use eplot::graph::{Graph, GraphMemory};
 
 pub struct TemplateApp {
@@ -54,6 +54,8 @@ impl epi::App for TemplateApp {
                     Scatter::new(points)
                         .fill_color(Color32::RED)
                         .size(3.)
+                        .stroke(Stroke::new(1., Color32::RED))
+                        .shape(MarkerShape::Triangle)
                         .stems(true),
                 );
 
