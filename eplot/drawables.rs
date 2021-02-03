@@ -1,5 +1,6 @@
+use std::f32::consts::TAU;
+
 use eframe::egui::*;
-use paint::text::Fonts;
 
 /// Trait shared by everything that can be plotted.
 pub trait Drawable {
@@ -9,24 +10,22 @@ pub trait Drawable {
 
 /// Text positioned on the plot.
 /// Does not work correctly right now due to how the text is transformed.
-pub struct Text<'a> {
+pub struct Text {
     position: Pos2,
     _rotation: f32,
     text: String,
     color: Color32,
     anchor: Align2,
-    fonts: &'a Fonts,
 }
 
-impl<'a> Text<'a> {
-    pub fn new(position: Pos2, text: impl Into<String>, fonts: &'a Fonts) -> Self {
+impl Text {
+    pub fn new(position: Pos2, text: impl Into<String>) -> Self {
         Self {
             position,
             _rotation: 0.,
             text: text.into(),
             color: Color32::WHITE,
             anchor: Align2::CENTER_CENTER,
-            fonts,
         }
     }
 
@@ -46,7 +45,7 @@ impl<'a> Text<'a> {
     }
 }
 
-impl<'a> Drawable for Text<'a> {
+impl Drawable for Text {
     fn paint(&self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2) {
         let Text {
             position,
@@ -54,18 +53,16 @@ impl<'a> Drawable for Text<'a> {
             text,
             color,
             anchor,
-            fonts,
         } = self;
 
-        // TODO
-        painter.add(Shape::text(
-            fonts,
+        // TODO Fix this.
+        painter.text(
             transform(position),
             *anchor,
             text,
             TextStyle::Monospace,
             *color,
-        ));
+        );
     }
 }
 
@@ -113,6 +110,7 @@ impl Drawable for Polygon {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum MarkerShape {
     Circle,
     Triangle,
@@ -216,16 +214,23 @@ impl Drawable for Scatter {
                 MarkerShape::Plus => {
                     let dx = Vec2::new(*size, 0.);
                     painter.line_segment([p1 - dx, p1 + dx], *stroke);
-                    let dy = dx.rot90();
+                    let dy = Vec2::new(0., *size);
                     painter.line_segment([p1 - dy, p1 + dy], *stroke);
                 }
                 MarkerShape::X => {
-                    let diag = Vec2::new(*size, *size) * std::f32::consts::SQRT_2;
+                    let diag = Vec2::new(*size, *size) / std::f32::consts::SQRT_2;
                     painter.line_segment([p1 - diag, p1 + diag], *stroke);
                     let diag = diag.rot90();
                     painter.line_segment([p1 - diag, p1 + diag], *stroke);
                 }
-                MarkerShape::Star => {}
+                MarkerShape::Star => {
+                    let spikes = 8; // Has to be be even.
+                    (0..spikes / 2).for_each(|i| {
+                        let angle = i as f32 / spikes as f32 * TAU;
+                        let diag = Vec2::angled(angle) * *size;
+                        painter.line_segment([p1 - diag, p1 + diag], *stroke);
+                    });
+                }
             };
         });
     }
