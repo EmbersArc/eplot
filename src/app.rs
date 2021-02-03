@@ -1,5 +1,7 @@
+use std::f32::consts::TAU;
+
 use eframe::{egui::*, epi};
-use eplot::drawables::{Line, MarkerShape, Polygon, Scatter};
+use eplot::drawables::{Line, MarkerShape, Polygon, Quiver, Scatter};
 use eplot::graph::{Graph, GraphMemory};
 
 pub struct TemplateApp {
@@ -114,6 +116,20 @@ impl epi::App for TemplateApp {
                                 .stroke(Stroke::new(1., *color)),
                         );
                     });
+
+                let center = Pos2::new(-12., 0.);
+                let mut points = Vec::new();
+                let mut directions = Vec::new();
+                (-5..=5).for_each(|i| {
+                    (-5..=5).for_each(|j| {
+                        points.push(center + Vec2::new(i as f32, j as f32));
+                        directions.push(Vec2::new(
+                            ((i as f32) / 10. * TAU).sin(),
+                            ((j as f32) / 10. * TAU).cos(),
+                        ));
+                    });
+                });
+                plot_ui.plot(Quiver::new(points, directions));
             });
     }
 

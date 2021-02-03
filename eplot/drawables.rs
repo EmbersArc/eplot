@@ -206,7 +206,7 @@ impl Drawable for Scatter {
                     let outer_radius = 1.0 * size;
                     let inner_radius = 0.5 * size;
                     let bottom = Vec2::new(0., -outer_radius);
-                    let left = Vec2::new(-3f32.sqrt() / 2. * outer_radius, inner_radius);
+                    let left = Vec2::new(-(3f32.sqrt()) / 2. * outer_radius, inner_radius);
                     let right = Vec2::new(3f32.sqrt() / 2. * outer_radius, inner_radius);
                     let points = vec![p1 + bottom, p1 + right, p1 + left];
                     painter.add(Shape::polygon(points, *fill, *stroke));
@@ -275,5 +275,46 @@ impl Drawable for Line {
             points.iter().map(|p| transform(p)).collect(),
             Stroke::new(*weight, *color),
         ));
+    }
+}
+
+pub struct Quiver {
+    points: Vec<Pos2>,
+    directions: Vec<Vec2>,
+    color: Color32,
+}
+
+impl Quiver {
+    pub fn new(points: Vec<Pos2>, directions: Vec<Vec2>) -> Self {
+        Self {
+            points,
+            directions,
+            color: Color32::WHITE,
+        }
+    }
+
+    pub fn color(mut self, color: Color32) -> Self {
+        self.color = color;
+        self
+    }
+}
+
+impl Drawable for Quiver {
+    fn paint(&self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2) {
+        let Self {
+            points,
+            directions,
+            color,
+        } = self;
+
+        points
+            .iter()
+            .zip(directions.iter())
+            .for_each(|(point, direction)| {
+                let p0 = transform(point);
+                let p1 = transform(&(*point + *direction));
+
+                painter.arrow(p0, p1 - p0, Stroke::new(1., *color));
+            });
     }
 }
