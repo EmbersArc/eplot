@@ -12,13 +12,14 @@ pub struct Graph<'mem> {
     memory: &'mem mut GraphMemory,
 }
 
-pub struct PlotUi {
-    drawables: Vec<Box<dyn Drawable>>,
+pub struct PlotUi<'p> {
+    painter: &'p mut Painter,
+    transform: &'p dyn Fn(&Pos2) -> Pos2,
 }
 
-impl PlotUi {
+impl<'p> PlotUi<'p> {
     pub fn plot<D: Drawable + 'static>(&mut self, item: D) {
-        self.drawables.push(Box::new(item));
+        item.paint(self.painter, self.transform);
     }
 }
 
@@ -279,19 +280,15 @@ impl<'mem> Graph<'mem> {
             // Restrict painting to the painter area
             painter.set_clip_rect(painter_rect);
 
-            // Call the function provided by the user to add the shapes.
-            let mut plot_ui = PlotUi {
-                drawables: Vec::new(),
-            };
-            add_contents(&mut plot_ui);
-
             let plot_to_screen =
                 |pos: &Pos2| -> Pos2 { Self::transform_position(pos, &plot_rect, &painter_rect) };
 
-            // Transform all shapes
-            plot_ui.drawables.drain(..).for_each(|drawable| {
-                drawable.paint(&mut painter, &plot_to_screen);
-            });
+            // Call the function provided by the user to add the shapes.
+            let mut plot_ui = PlotUi {
+                painter: &mut painter,
+                transform: &plot_to_screen,
+            };
+            add_contents(&mut plot_ui);
 
             // Show mouse position
             if show_cursor_pos {
