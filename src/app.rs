@@ -55,7 +55,7 @@ impl epi::App for TemplateApp {
                         .fill_color(Color32::RED)
                         .size(3.)
                         .stroke(Stroke::new(1., Color32::RED))
-                        .shape(MarkerShape::Triangle)
+                        .shape(MarkerShape::Star)
                         .stems(true),
                 );
 
@@ -77,6 +77,43 @@ impl epi::App for TemplateApp {
                             Color32::from_rgba_unmultiplied(255, 0, 255, 255),
                         )),
                 );
+
+                let markers_position = Pos2::new(7., -3.);
+                let markers = [
+                    MarkerShape::Circle,
+                    MarkerShape::Triangle,
+                    MarkerShape::Square,
+                    MarkerShape::Plus,
+                    MarkerShape::X,
+                    MarkerShape::Star,
+                ];
+                let colors = [
+                    Color32::WHITE,
+                    Color32::LIGHT_BLUE,
+                    Color32::BLUE,
+                    Color32::GREEN,
+                    Color32::YELLOW,
+                    Color32::RED,
+                ];
+                markers
+                    .iter()
+                    .zip(colors.iter())
+                    .enumerate()
+                    .for_each(|(i, (marker, color))| {
+                        let points = vec![
+                            markers_position + Vec2::new(0., i as f32),
+                            markers_position + Vec2::new(3., i as f32 + 0.5),
+                        ];
+
+                        plot_ui.plot(Line::new(points.clone()).color(color.linear_multiply(0.25)));
+                        plot_ui.plot(
+                            Scatter::new(points)
+                                .shape(*marker)
+                                .size(5.)
+                                .fill_color(*color)
+                                .stroke(Stroke::new(1., *color)),
+                        );
+                    });
             });
     }
 
