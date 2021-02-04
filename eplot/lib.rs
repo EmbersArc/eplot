@@ -1,2 +1,2 @@
 pub mod drawables;
-pub mod graph;
+pub mod plot;

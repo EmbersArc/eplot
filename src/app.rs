@@ -3,7 +3,7 @@ use std::f32::consts::TAU;
 use eframe::{egui::*, epi};
 use eplot::{
     drawables::{Line, MarkerShape, Polygon, Quiver, Scatter, Text},
-    graph::PlotCtx,
+    plot::PlotCtx,
 };
 
 pub struct TemplateApp {
