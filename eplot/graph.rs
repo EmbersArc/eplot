@@ -44,7 +44,7 @@ impl Default for GraphMemory {
     fn default() -> Self {
         Self {
             last_drag_pos: None,
-            plot_rect: Rect::from_center_size(Pos2::zero(), Vec2::new(10., 10.)),
+            plot_rect: Rect::from_center_size(Pos2::zero(), vec2(10., 10.)),
             first_run: true,
         }
     }
@@ -59,7 +59,7 @@ impl<'mem> Graph<'mem> {
             x_axis_label: None,
             y_axis_label: None,
             memory,
-            size: Vec2::new(100., 100.),
+            size: vec2(100., 100.),
         }
     }
 
@@ -109,26 +109,8 @@ impl<'mem> Graph<'mem> {
     }
 
     /// Draw the plot. Takes a closure where contents can be added to the plot.
-    pub fn show<R>(self, ctx: &CtxRef, add_contents: impl FnOnce(&mut PlotUi) -> R) -> Response {
-        let layer_id = LayerId::background();
-        let id = Id::new(&self.label);
-
-        let panel_rect = Rect::from_min_max(
-            ctx.available_rect().left_top(),
-            ctx.available_rect().left_top() + self.size,
-        )
-        .intersect(ctx.available_rect());
-
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, panel_rect, panel_rect);
-
-        Frame {
-            margin: Vec2::new(0.0, 0.0),
-            corner_radius: 0.0,
-            fill: Color32::from_gray(5),
-            stroke: panel_ui.style().visuals.widgets.noninteractive.bg_stroke,
-            ..Default::default()
-        }
-        .show(&mut panel_ui, |ui| {
+    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut PlotUi) -> R) -> Response {
+        Resize::default().default_size(self.size).show(ui, |ui| {
             let Self {
                 axis_equal,
                 show_cursor_pos,
@@ -160,8 +142,8 @@ impl<'mem> Graph<'mem> {
             }
             let full_rect = response.rect;
             let painter_rect = Rect::from_min_max(
-                full_rect.min + Vec2::new(left_margin, top_margin),
-                full_rect.max - Vec2::new(right_margin, bottom_margin),
+                full_rect.min + vec2(left_margin, top_margin),
+                full_rect.max - vec2(right_margin, bottom_margin),
             );
             painter.rect(
                 painter_rect,
@@ -172,7 +154,7 @@ impl<'mem> Graph<'mem> {
 
             if let Some(label) = &x_axis_label {
                 painter.text(
-                    painter_rect.center_bottom() + Vec2::new(0., 25.),
+                    painter_rect.center_bottom() + vec2(0., 25.),
                     Align2::CENTER_TOP,
                     label,
                     TextStyle::Monospace,
@@ -221,12 +203,12 @@ impl<'mem> Graph<'mem> {
                     let top_distance = (mouse_pos.y - painter_rect.top()) / painter_rect.height();
                     let bottom_distance = 1. - top_distance;
                     *plot_rect = Rect::from_min_max(
-                        Pos2::new(
+                        pos2(
                             plot_rect.min.x + 0.01 * scrolled * plot_rect.width() * left_distance,
                             plot_rect.min.y
                                 + 0.01 * scrolled * plot_rect.height() * bottom_distance,
                         ),
-                        Pos2::new(
+                        pos2(
                             plot_rect.max.x - 0.01 * scrolled * plot_rect.width() * right_distance,
                             plot_rect.max.y - 0.01 * scrolled * plot_rect.height() * top_distance,
                         ),
@@ -253,7 +235,7 @@ impl<'mem> Graph<'mem> {
                 if tick_pos_x > plot_rect.right() {
                     break;
                 }
-                let x_tick = Pos2::new(tick_pos_x, plot_rect.top());
+                let x_tick = pos2(tick_pos_x, plot_rect.top());
                 let x_tick = Self::transform_position(&x_tick, &plot_rect, &painter_rect);
                 painter.line_segment(
                     [x_tick, x_tick - 5. * Vec2::Y],
@@ -282,7 +264,7 @@ impl<'mem> Graph<'mem> {
                 if tick_pos_y > plot_rect.bottom() {
                     break;
                 }
-                let y_tick = Pos2::new(plot_rect.left(), tick_pos_y);
+                let y_tick = pos2(plot_rect.left(), tick_pos_y);
                 let y_tick = Self::transform_position(&y_tick, &plot_rect, &painter_rect);
                 painter.line_segment(
                     [y_tick, y_tick + 5. * Vec2::X],
@@ -338,7 +320,7 @@ impl<'mem> Graph<'mem> {
                 {
                     let mouse_pos = screen_to_plot(&mouse_pos);
                     painter.text(
-                        painter_rect.right_bottom() + Vec2::new(-10., -10.),
+                        painter_rect.right_bottom() + vec2(-10., -10.),
                         Align2::RIGHT_BOTTOM,
                         format!("{:?}", mouse_pos),
                         TextStyle::Monospace,
@@ -360,7 +342,7 @@ impl<'mem> Graph<'mem> {
         let to_x_range = screen_rect.x_range();
         let to_y_range = screen_rect.bottom_up_range();
 
-        Pos2::new(
+        pos2(
             remap(pos.x, from_x_range, to_x_range),
             remap(pos.y, from_y_range, to_y_range),
         )

@@ -55,7 +55,6 @@ impl Drawable for Text {
             anchor,
         } = self;
 
-        // TODO Fix this.
         painter.text(
             transform(&position),
             anchor,
