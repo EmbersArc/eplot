@@ -1,7 +1,7 @@
 use std::f32::consts::TAU;
 
 use eframe::{egui::*, epi};
-use eplot::drawables::{Line, MarkerShape, Polygon, Quiver, Scatter};
+use eplot::drawables::{Line, MarkerShape, Polygon, Quiver, Scatter, Text};
 use eplot::graph::{Graph, GraphMemory};
 
 pub struct TemplateApp {
@@ -88,6 +88,7 @@ impl epi::App for TemplateApp {
                             )),
                     );
 
+                    // Scatter markers
                     let markers_position = Pos2::new(7., -3.);
                     let markers = [
                         MarkerShape::Circle,
@@ -124,6 +125,7 @@ impl epi::App for TemplateApp {
                         },
                     );
 
+                    // Quiver
                     let center = Pos2::new(-12., 0.);
                     let mut points = Vec::new();
                     let mut directions = Vec::new();
@@ -149,6 +151,9 @@ impl epi::App for TemplateApp {
                         });
                     });
                     plot_ui.plot(Quiver::new(points, directions));
+
+                    // Text
+                    plot_ui.plot(Text::new(Pos2::new(0., -8.), "Lorem ipsum"));
                 });
         });
     }
