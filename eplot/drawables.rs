@@ -282,6 +282,7 @@ pub struct Quiver {
     points: Vec<Pos2>,
     directions: Vec<Vec2>,
     color: Color32,
+    weight: f32,
 }
 
 impl Quiver {
@@ -290,11 +291,17 @@ impl Quiver {
             points,
             directions,
             color: Color32::WHITE,
+            weight: 1.,
         }
     }
 
     pub fn color(mut self, color: Color32) -> Self {
         self.color = color;
+        self
+    }
+
+    pub fn weight(mut self, weight: f32) -> Self {
+        self.weight = weight;
         self
     }
 }
@@ -305,6 +312,7 @@ impl Drawable for Quiver {
             points,
             directions,
             color,
+            weight,
         } = self;
 
         points
@@ -314,7 +322,7 @@ impl Drawable for Quiver {
                 let p0 = transform(point);
                 let p1 = transform(&(*point + *direction));
 
-                painter.arrow(p0, p1 - p0, Stroke::new(1., *color));
+                painter.arrow(p0, p1 - p0, Stroke::new(*weight, *color));
             });
     }
 }
