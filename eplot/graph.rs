@@ -3,6 +3,27 @@ use std::ops::RangeInclusive;
 
 use super::drawables::Drawable;
 
+pub struct PlotUi<'p> {
+    painter: &'p mut Painter,
+    plot_to_screen: &'p dyn Fn(&Pos2) -> Pos2,
+    mouse_position: Option<Pos2>,
+    hovered: bool,
+}
+
+impl<'p> PlotUi<'p> {
+    pub fn plot<D: Drawable + 'static>(&mut self, item: D) {
+        item.paint(self.painter, self.plot_to_screen);
+    }
+
+    pub fn plot_mouse_position(&self) -> Option<Pos2> {
+        self.mouse_position
+    }
+
+    pub fn plot_hovered(&self) -> bool {
+        self.hovered
+    }
+}
+
 pub struct Graph<'mem> {
     label: String,
     axis_equal: bool,
@@ -10,17 +31,7 @@ pub struct Graph<'mem> {
     x_axis_label: Option<String>,
     y_axis_label: Option<String>,
     memory: &'mem mut GraphMemory,
-}
-
-pub struct PlotUi<'p> {
-    painter: &'p mut Painter,
-    transform: &'p dyn Fn(&Pos2) -> Pos2,
-}
-
-impl<'p> PlotUi<'p> {
-    pub fn plot<D: Drawable + 'static>(&mut self, item: D) {
-        item.paint(self.painter, self.transform);
-    }
+    size: Vec2,
 }
 
 pub struct GraphMemory {
@@ -48,7 +59,13 @@ impl<'mem> Graph<'mem> {
             x_axis_label: None,
             y_axis_label: None,
             memory,
+            size: Vec2::new(100., 100.),
         }
+    }
+
+    pub fn size(mut self, size: Vec2) -> Self {
+        self.size = size;
+        self
     }
 
     pub fn x_range(mut self, range: RangeInclusive<f32>) -> Self {
@@ -96,10 +113,13 @@ impl<'mem> Graph<'mem> {
         let layer_id = LayerId::background();
         let id = Id::new(&self.label);
 
-        let panel_rect = ctx.available_rect();
+        let panel_rect = Rect::from_min_max(
+            ctx.available_rect().left_top(),
+            ctx.available_rect().left_top() + self.size,
+        )
+        .intersect(ctx.available_rect());
 
-        let clip_rect = ctx.input().screen_rect();
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, panel_rect, clip_rect);
+        let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, panel_rect, panel_rect);
 
         Frame {
             margin: Vec2::new(0.0, 0.0),
@@ -189,7 +209,12 @@ impl<'mem> Graph<'mem> {
 
             // Zooming
             let scrolled = ui.input().scroll_delta.y.max(-10.0).min(10.0);
-            if let Some(mouse_pos) = ui.input().pointer.interact_pos() {
+            if let Some(mouse_pos) = ui
+                .input()
+                .pointer
+                .interact_pos()
+                .filter(|pos| painter_rect.contains(*pos))
+            {
                 if scrolled != 0. {
                     let left_distance = (mouse_pos.x - painter_rect.left()) / painter_rect.width();
                     let right_distance = 1. - left_distance;
@@ -282,18 +307,36 @@ impl<'mem> Graph<'mem> {
 
             let plot_to_screen =
                 |pos: &Pos2| -> Pos2 { Self::transform_position(pos, &plot_rect, &painter_rect) };
+            let screen_to_plot =
+                |pos: &Pos2| -> Pos2 { Self::transform_position(pos, &painter_rect, &plot_rect) };
 
             // Call the function provided by the user to add the shapes.
             let mut plot_ui = PlotUi {
                 painter: &mut painter,
-                transform: &plot_to_screen,
+                plot_to_screen: &plot_to_screen,
+                mouse_position: ui
+                    .input()
+                    .pointer
+                    .interact_pos()
+                    .map(|pos| screen_to_plot(&pos)),
+                hovered: ui
+                    .input()
+                    .pointer
+                    .interact_pos()
+                    .filter(|pos| painter_rect.contains(*pos))
+                    .is_some(),
             };
             add_contents(&mut plot_ui);
 
             // Show mouse position
             if show_cursor_pos {
-                if let Some(mouse_pos) = ui.input().pointer.interact_pos() {
-                    let mouse_pos = Self::transform_position(&mouse_pos, &painter_rect, &plot_rect);
+                if let Some(mouse_pos) = ui
+                    .input()
+                    .pointer
+                    .interact_pos()
+                    .filter(|pos| painter_rect.contains(*pos))
+                {
+                    let mouse_pos = screen_to_plot(&mouse_pos);
                     painter.text(
                         painter_rect.right_bottom() + Vec2::new(-10., -10.),
                         Align2::RIGHT_BOTTOM,
