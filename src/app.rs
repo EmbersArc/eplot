@@ -1,19 +1,21 @@
 use std::f32::consts::TAU;
 
 use eframe::{egui::*, epi};
-use eplot::drawables::{Line, MarkerShape, Polygon, Quiver, Scatter, Text};
-use eplot::graph::{Graph, GraphMemory};
+use eplot::{
+    drawables::{Line, MarkerShape, Polygon, Quiver, Scatter, Text},
+    graph::PlotCtx,
+};
 
 pub struct TemplateApp {
     start_time: std::time::Instant,
-    graph_memory: GraphMemory,
+    plot_ctx: PlotCtx,
 }
 
 impl Default for TemplateApp {
     fn default() -> Self {
         Self {
             start_time: std::time::Instant::now(),
-            graph_memory: GraphMemory::default(),
+            plot_ctx: PlotCtx::default(),
         }
     }
 }
@@ -22,19 +24,24 @@ impl epi::App for TemplateApp {
     fn update(&mut self, ctx: &CtxRef, _frame: &mut epi::Frame<'_>) {
         ctx.request_repaint();
 
-        let start_time = self.start_time;
+        let Self {
+            plot_ctx,
+            ref start_time,
+        } = self;
 
         CentralPanel::default().show(ctx, |ui| {
             ui.label("Test title");
-            Graph::new("TestPlot", &mut self.graph_memory)
-                .size(vec2(700., 500.))
+            plot_ctx
+                .plot("TestPlot")
+                .title("Showcase")
+                .size(vec2(1280., 720.))
                 .x_axis_label("x-axis label")
                 .y_axis_label("y-axis label") // Not working yet
                 .x_range(-10f32..=10.)
                 .axis_equal(true)
                 .show(ui, |plot_ui| {
                     let t = std::time::Instant::now()
-                        .duration_since(start_time)
+                        .duration_since(*start_time)
                         .as_secs_f32();
 
                     // Line
@@ -49,7 +56,7 @@ impl epi::App for TemplateApp {
                                     pos2(x, y)
                                 })
                                 .collect();
-                            plot_ui.plot(Line::new(points).color(Color32::GREEN).weight(*weight));
+                            plot_ui.add(Line::new(points).color(Color32::GREEN).weight(*weight));
                         });
 
                     // Scatter
@@ -60,7 +67,7 @@ impl epi::App for TemplateApp {
                             pos2(x, y)
                         })
                         .collect();
-                    plot_ui.plot(
+                    plot_ui.add(
                         Scatter::new(points)
                             .fill_color(Color32::RED)
                             .size(3.)
@@ -80,7 +87,7 @@ impl epi::App for TemplateApp {
                         pos2(-3., -1.) + vec2(0., -4.),
                         pos2(-3., 1.) + vec2(0., -4.),
                     ];
-                    plot_ui.plot(
+                    plot_ui.add(
                         Polygon::new(points)
                             .fill_color(Color32::from_rgba_unmultiplied(255, 0, 255, 30))
                             .stroke(Stroke::new(
@@ -115,8 +122,8 @@ impl epi::App for TemplateApp {
                             ];
 
                             plot_ui
-                                .plot(Line::new(points.clone()).color(color.linear_multiply(0.25)));
-                            plot_ui.plot(
+                                .add(Line::new(points.clone()).color(color.linear_multiply(0.25)));
+                            plot_ui.add(
                                 Scatter::new(points)
                                     .shape(*marker)
                                     .size(5.)
@@ -150,10 +157,10 @@ impl epi::App for TemplateApp {
                             }
                         });
                     });
-                    plot_ui.plot(Quiver::new(points, directions));
+                    plot_ui.add(Quiver::new(points, directions));
 
                     // Text
-                    plot_ui.plot(
+                    plot_ui.add(
                         Text::new(pos2(-12., -6.), "^ Move the cursor here ^")
                             .anchor(Align2::CENTER_BOTTOM),
                     );

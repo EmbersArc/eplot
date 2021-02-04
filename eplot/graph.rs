@@ -1,5 +1,5 @@
 use eframe::egui::*;
-use std::ops::RangeInclusive;
+use std::{collections::HashMap, ops::RangeInclusive};
 
 use super::drawables::Drawable;
 
@@ -11,7 +11,7 @@ pub struct PlotUi<'p> {
 }
 
 impl<'p> PlotUi<'p> {
-    pub fn plot<D: Drawable + 'static>(&mut self, item: D) {
+    pub fn add<D: Drawable>(&mut self, item: D) {
         item.paint(self.painter, self.plot_to_screen);
     }
 
@@ -24,23 +24,23 @@ impl<'p> PlotUi<'p> {
     }
 }
 
-pub struct Graph<'mem> {
-    label: String,
+pub struct Plot<'mem> {
+    title: Option<String>,
     axis_equal: bool,
     show_cursor_pos: bool,
     x_axis_label: Option<String>,
     y_axis_label: Option<String>,
-    memory: &'mem mut GraphMemory,
+    memory: &'mem mut PlotMemory,
     size: Vec2,
 }
 
-pub struct GraphMemory {
+pub(crate) struct PlotMemory {
     last_drag_pos: Option<Pos2>,
     plot_rect: Rect,
     first_run: bool,
 }
 
-impl Default for GraphMemory {
+impl Default for PlotMemory {
     fn default() -> Self {
         Self {
             last_drag_pos: None,
@@ -50,10 +50,22 @@ impl Default for GraphMemory {
     }
 }
 
-impl<'mem> Graph<'mem> {
-    pub fn new(label: impl Into<String>, memory: &'mem mut GraphMemory) -> Self {
+#[derive(Default)]
+pub struct PlotCtx {
+    pub(crate) memory: HashMap<Id, PlotMemory>,
+}
+
+impl PlotCtx {
+    pub fn plot(&mut self, label: impl Into<String>) -> Plot {
+        let mem = self.memory.entry(Id::new(label.into())).or_default();
+        Plot::new(mem)
+    }
+}
+
+impl<'mem> Plot<'mem> {
+    fn new(memory: &'mem mut PlotMemory) -> Self {
         Self {
-            label: label.into(),
+            title: None,
             axis_equal: false,
             show_cursor_pos: true,
             x_axis_label: None,
@@ -61,6 +73,11 @@ impl<'mem> Graph<'mem> {
             memory,
             size: vec2(100., 100.),
         }
+    }
+
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
     }
 
     pub fn size(mut self, size: Vec2) -> Self {
@@ -110,17 +127,17 @@ impl<'mem> Graph<'mem> {
 
     /// Draw the plot. Takes a closure where contents can be added to the plot.
     pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut PlotUi) -> R) -> Response {
-        Resize::default().default_size(self.size).show(ui, |ui| {
-            let Self {
-                axis_equal,
-                show_cursor_pos,
-                x_axis_label,
-                y_axis_label,
-                memory,
-                ..
-            } = self;
-
-            let GraphMemory {
+        let Self {
+            axis_equal,
+            show_cursor_pos,
+            x_axis_label,
+            y_axis_label,
+            memory,
+            title,
+            size,
+        } = self;
+        Resize::default().default_size(size).show(ui, |ui| {
+            let PlotMemory {
                 last_drag_pos,
                 plot_rect,
                 first_run,
@@ -133,7 +150,10 @@ impl<'mem> Graph<'mem> {
             let mut left_margin = 40.;
             let right_margin = 10.;
             let mut bottom_margin = 40.;
-            let top_margin = 10.;
+            let mut top_margin = 10.;
+            if title.is_some() {
+                top_margin += 10.
+            }
             if x_axis_label.is_some() {
                 bottom_margin += 10.
             }
@@ -152,7 +172,17 @@ impl<'mem> Graph<'mem> {
                 Stroke::new(1.0, Color32::from_white_alpha(150)),
             );
 
-            if let Some(label) = &x_axis_label {
+            if let Some(title) = title {
+                painter.text(
+                    painter_rect.center_top() - vec2(0., 2.),
+                    Align2::CENTER_BOTTOM,
+                    title,
+                    TextStyle::Monospace,
+                    Color32::WHITE,
+                );
+            }
+
+            if let Some(label) = x_axis_label {
                 painter.text(
                     painter_rect.center_bottom() + vec2(0., 25.),
                     Align2::CENTER_TOP,
@@ -161,6 +191,8 @@ impl<'mem> Graph<'mem> {
                     Color32::WHITE,
                 );
             }
+
+            // TODO: Y-axis label.
 
             // Adjust the Y-axis so that the aspect ratio is equal.
             if axis_equal {
