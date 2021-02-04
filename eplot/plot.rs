@@ -57,7 +57,8 @@ pub struct PlotCtx {
 
 impl PlotCtx {
     pub fn plot(&mut self, label: impl Into<String>) -> Plot {
-        let mem = self.memory.entry(Id::new(label.into())).or_default();
+        let id = Id::new(label.into());
+        let mem = self.memory.entry(id).or_default();
         Plot::new(mem)
     }
 }
