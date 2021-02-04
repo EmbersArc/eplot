@@ -5,7 +5,7 @@ use eframe::egui::*;
 /// Trait shared by everything that can be plotted.
 pub trait Drawable {
     /// Function to turn the drawable item into Shapes.
-    fn paint(&self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2);
+    fn paint(self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2);
 }
 
 /// Text positioned on the plot.
@@ -46,7 +46,7 @@ impl Text {
 }
 
 impl Drawable for Text {
-    fn paint(&self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2) {
+    fn paint(self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2) {
         let Text {
             position,
             _rotation,
@@ -57,11 +57,11 @@ impl Drawable for Text {
 
         // TODO Fix this.
         painter.text(
-            transform(position),
-            *anchor,
+            transform(&position),
+            anchor,
             text,
             TextStyle::Monospace,
-            *color,
+            color,
         );
     }
 }
@@ -95,7 +95,7 @@ impl Polygon {
 }
 
 impl Drawable for Polygon {
-    fn paint(&self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2) {
+    fn paint(self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2) {
         let Self {
             points,
             fill,
@@ -104,8 +104,8 @@ impl Drawable for Polygon {
 
         painter.add(Shape::polygon(
             points.iter().map(|p| transform(p)).collect(),
-            *fill,
-            *stroke,
+            fill,
+            stroke,
         ));
     }
 }
@@ -176,7 +176,7 @@ impl Scatter {
 }
 
 impl Drawable for Scatter {
-    fn paint(&self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2) {
+    fn paint(self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2) {
         let Self {
             points,
             fill,
@@ -190,17 +190,17 @@ impl Drawable for Scatter {
         points.iter().for_each(|p| {
             let p0 = transform(&Pos2::new(p.x, 0.));
             let p1 = transform(p);
-            if *stems {
-                painter.line_segment([p0, p1], *stems_stroke);
+            if stems {
+                painter.line_segment([p0, p1], stems_stroke);
             }
 
             match shape {
-                MarkerShape::Circle => painter.circle(p1, *size, *fill, *stroke),
+                MarkerShape::Circle => painter.circle(p1, size, fill, stroke),
                 MarkerShape::Square => painter.rect(
                     Rect::from_center_size(p1, Vec2::new(2. * size, 2. * size)),
                     0.,
-                    *fill,
-                    *stroke,
+                    fill,
+                    stroke,
                 ),
                 MarkerShape::Triangle => {
                     let outer_radius = 1.0 * size;
@@ -209,26 +209,26 @@ impl Drawable for Scatter {
                     let left = Vec2::new(-(3f32.sqrt()) / 2. * outer_radius, inner_radius);
                     let right = Vec2::new(3f32.sqrt() / 2. * outer_radius, inner_radius);
                     let points = vec![p1 + bottom, p1 + right, p1 + left];
-                    painter.add(Shape::polygon(points, *fill, *stroke));
+                    painter.add(Shape::polygon(points, fill, stroke));
                 }
                 MarkerShape::Plus => {
-                    let dx = Vec2::new(*size, 0.);
-                    painter.line_segment([p1 - dx, p1 + dx], *stroke);
-                    let dy = Vec2::new(0., *size);
-                    painter.line_segment([p1 - dy, p1 + dy], *stroke);
+                    let dx = Vec2::new(size, 0.);
+                    painter.line_segment([p1 - dx, p1 + dx], stroke);
+                    let dy = Vec2::new(0., size);
+                    painter.line_segment([p1 - dy, p1 + dy], stroke);
                 }
                 MarkerShape::X => {
-                    let diag = Vec2::new(*size, *size) / std::f32::consts::SQRT_2;
-                    painter.line_segment([p1 - diag, p1 + diag], *stroke);
+                    let diag = Vec2::new(size, size) / std::f32::consts::SQRT_2;
+                    painter.line_segment([p1 - diag, p1 + diag], stroke);
                     let diag = diag.rot90();
-                    painter.line_segment([p1 - diag, p1 + diag], *stroke);
+                    painter.line_segment([p1 - diag, p1 + diag], stroke);
                 }
                 MarkerShape::Star => {
                     let spikes = 8; // Has to be be even.
                     (0..spikes / 2).for_each(|i| {
                         let angle = i as f32 / spikes as f32 * TAU;
-                        let diag = Vec2::angled(angle) * *size;
-                        painter.line_segment([p1 - diag, p1 + diag], *stroke);
+                        let diag = Vec2::angled(angle) * size;
+                        painter.line_segment([p1 - diag, p1 + diag], stroke);
                     });
                 }
             };
@@ -264,7 +264,7 @@ impl Line {
 }
 
 impl Drawable for Line {
-    fn paint(&self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2) {
+    fn paint(self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2) {
         let Self {
             points,
             color,
@@ -273,7 +273,7 @@ impl Drawable for Line {
 
         painter.add(Shape::line(
             points.iter().map(|p| transform(p)).collect(),
-            Stroke::new(*weight, *color),
+            Stroke::new(weight, color),
         ));
     }
 }
@@ -307,7 +307,7 @@ impl Quiver {
 }
 
 impl Drawable for Quiver {
-    fn paint(&self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2) {
+    fn paint(self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2) {
         let Self {
             points,
             directions,
@@ -322,7 +322,7 @@ impl Drawable for Quiver {
                 let p0 = transform(point);
                 let p1 = transform(&(*point + *direction));
 
-                painter.arrow(p0, p1 - p0, Stroke::new(*weight, *color));
+                painter.arrow(p0, p1 - p0, Stroke::new(weight, color));
             });
     }
 }
