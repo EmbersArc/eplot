@@ -240,6 +240,7 @@ pub struct Line {
     points: Vec<Pos2>,
     color: Color32,
     weight: f32,
+    area_fill: Option<Color32>,
 }
 
 impl Line {
@@ -248,6 +249,7 @@ impl Line {
             points,
             color: Color32::WHITE,
             weight: 1.,
+            area_fill: None,
         }
     }
 
@@ -260,6 +262,11 @@ impl Line {
         self.weight = weight;
         self
     }
+
+    pub fn area_fill(mut self, color: Color32) -> Self {
+        self.area_fill = Some(color);
+        self
+    }
 }
 
 impl Drawable for Line {
@@ -268,12 +275,26 @@ impl Drawable for Line {
             points,
             color,
             weight,
+            area_fill,
         } = self;
 
-        painter.add(Shape::line(
-            points.iter().map(|p| transform(p)).collect(),
-            Stroke::new(weight, color),
-        ));
+        // TODO: Ew. Make this better.
+        if let Some(fill) = area_fill {
+            points.windows(2).for_each(|w| {
+                let start_down = transform(&pos2(w[0].x, 0.));
+                let end_down = transform(&pos2(w[1].x, 0.));
+
+                painter.add(Shape::polygon(
+                    vec![transform(&w[1]), transform(&w[0]), start_down, end_down],
+                    fill,
+                    Stroke::default(),
+                ));
+            });
+        }
+
+        let points: Vec<Pos2> = points.iter().map(|p| transform(p)).collect();
+
+        painter.add(Shape::line(points, Stroke::new(weight, color)));
     }
 }
 
