@@ -1,7 +1,7 @@
 use eframe::egui::*;
 use std::{collections::HashMap, ops::RangeInclusive};
 
-use super::drawables::Drawable;
+use super::items::PlotItem;
 
 pub struct PlotUi<'p> {
     painter: &'p mut Painter,
@@ -11,7 +11,7 @@ pub struct PlotUi<'p> {
 }
 
 impl<'p> PlotUi<'p> {
-    pub fn add<D: Drawable>(&mut self, item: D) {
+    pub fn add<D: PlotItem>(&mut self, item: D) {
         item.paint(self.painter, self.plot_to_screen);
     }
 

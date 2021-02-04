@@ -3,7 +3,7 @@ use std::f32::consts::TAU;
 use eframe::egui::*;
 
 /// Trait shared by everything that can be plotted.
-pub trait Drawable {
+pub trait PlotItem {
     /// Function to turn the drawable item into Shapes.
     fn paint(self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2);
 }
@@ -45,7 +45,7 @@ impl Text {
     }
 }
 
-impl Drawable for Text {
+impl PlotItem for Text {
     fn paint(self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2) {
         let Text {
             position,
@@ -93,7 +93,7 @@ impl Polygon {
     }
 }
 
-impl Drawable for Polygon {
+impl PlotItem for Polygon {
     fn paint(self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2) {
         let Self {
             points,
@@ -174,7 +174,7 @@ impl Scatter {
     }
 }
 
-impl Drawable for Scatter {
+impl PlotItem for Scatter {
     fn paint(self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2) {
         let Self {
             points,
@@ -269,7 +269,7 @@ impl Line {
     }
 }
 
-impl Drawable for Line {
+impl PlotItem for Line {
     fn paint(self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2) {
         let Self {
             points,
@@ -326,7 +326,7 @@ impl Quiver {
     }
 }
 
-impl Drawable for Quiver {
+impl PlotItem for Quiver {
     fn paint(self, painter: &mut Painter, transform: &dyn Fn(&Pos2) -> Pos2) {
         let Self {
             points,

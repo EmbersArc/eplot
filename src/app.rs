@@ -1,6 +1,6 @@
 use eframe::{egui::*, epi};
 use eplot::{
-    drawables::{Line, MarkerShape, Polygon, Quiver, Scatter, Text},
+    items::{Line, MarkerShape, Polygon, Quiver, Scatter, Text},
     plot::PlotCtx,
 };
 
