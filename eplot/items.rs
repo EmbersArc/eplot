@@ -1,5 +1,3 @@
-use std::f32::consts::TAU;
-
 use eframe::egui::*;
 
 /// Trait shared by everything that can be plotted.
@@ -9,7 +7,6 @@ pub trait PlotItem {
 }
 
 /// Text positioned on the plot.
-/// Does not work correctly right now due to how the text is transformed.
 pub struct Text {
     position: Pos2,
     _rotation: f32,
@@ -119,6 +116,11 @@ pub enum MarkerShape {
     Star,
 }
 
+pub enum YReference {
+    Constant(f32),
+    Series(Vec<f32>),
+}
+
 /// Plot a set of points.
 pub struct Scatter {
     points: Vec<Pos2>,
@@ -126,8 +128,7 @@ pub struct Scatter {
     stroke: Stroke,
     size: f32,
     shape: MarkerShape,
-    stems: bool,
-    stems_stroke: Stroke,
+    stems: Option<(YReference, Stroke)>,
 }
 
 impl Scatter {
@@ -138,8 +139,7 @@ impl Scatter {
             stroke: Stroke::none(),
             size: 1.,
             shape: MarkerShape::Circle,
-            stems: false,
-            stems_stroke: Stroke::new(1., Color32::WHITE),
+            stems: None,
         }
     }
 
@@ -148,13 +148,14 @@ impl Scatter {
         self
     }
 
-    pub fn stems(mut self, on: bool) -> Self {
-        self.stems = on;
-        self
-    }
-
-    pub fn stems_stroke(mut self, stroke: Stroke) -> Self {
-        self.stems_stroke = stroke;
+    pub fn stems(mut self, reference: YReference, stroke: Stroke) -> Self {
+        if let YReference::Series(series) = &reference {
+            assert!(
+                series.len() == self.points.len(),
+                "The numer of y-axis reference values needs to match the data!"
+            );
+        }
+        self.stems = Some((reference, stroke));
         self
     }
 
@@ -183,20 +184,26 @@ impl PlotItem for Scatter {
             size,
             shape,
             stems,
-            stems_stroke,
         } = self;
 
-        points.iter().for_each(|p| {
-            let p0 = transform(&Pos2::new(p.x, 0.));
-            let p1 = transform(p);
-            if stems {
-                painter.line_segment([p0, p1], stems_stroke);
+        points.iter().enumerate().for_each(|(i, p)| {
+            let p_tf = transform(p);
+
+            if let Some((reference, stroke)) = &stems {
+                let current_ref = match reference {
+                    YReference::Constant(c) => *c,
+                    YReference::Series(s) => *s.get(i).unwrap(),
+                };
+
+                let p_ref_tf = transform(&Pos2::new(p.x, current_ref));
+
+                painter.line_segment([p_ref_tf, p_tf], *stroke);
             }
 
             match shape {
-                MarkerShape::Circle => painter.circle(p1, size, fill, stroke),
+                MarkerShape::Circle => painter.circle(p_tf, size, fill, stroke),
                 MarkerShape::Square => painter.rect(
-                    Rect::from_center_size(p1, Vec2::new(2. * size, 2. * size)),
+                    Rect::from_center_size(p_tf, Vec2::new(2. * size, 2. * size)),
                     0.,
                     fill,
                     stroke,
@@ -207,27 +214,28 @@ impl PlotItem for Scatter {
                     let bottom = Vec2::new(0., -outer_radius);
                     let left = Vec2::new(-(3f32.sqrt()) / 2. * outer_radius, inner_radius);
                     let right = Vec2::new(3f32.sqrt() / 2. * outer_radius, inner_radius);
-                    let points = vec![p1 + bottom, p1 + right, p1 + left];
+                    let points = vec![p_tf + bottom, p_tf + right, p_tf + left];
                     painter.add(Shape::polygon(points, fill, stroke));
                 }
                 MarkerShape::Plus => {
                     let dx = Vec2::new(size, 0.);
-                    painter.line_segment([p1 - dx, p1 + dx], stroke);
+                    painter.line_segment([p_tf - dx, p_tf + dx], stroke);
                     let dy = Vec2::new(0., size);
-                    painter.line_segment([p1 - dy, p1 + dy], stroke);
+                    painter.line_segment([p_tf - dy, p_tf + dy], stroke);
                 }
                 MarkerShape::X => {
                     let diag = Vec2::new(size, size) / std::f32::consts::SQRT_2;
-                    painter.line_segment([p1 - diag, p1 + diag], stroke);
+                    painter.line_segment([p_tf - diag, p_tf + diag], stroke);
                     let diag = diag.rot90();
-                    painter.line_segment([p1 - diag, p1 + diag], stroke);
+                    painter.line_segment([p_tf - diag, p_tf + diag], stroke);
                 }
                 MarkerShape::Star => {
                     let spikes = 8; // Has to be be even.
+                    use std::f32::consts::TAU;
                     (0..spikes / 2).for_each(|i| {
                         let angle = i as f32 / spikes as f32 * TAU;
                         let diag = Vec2::angled(angle) * size;
-                        painter.line_segment([p1 - diag, p1 + diag], stroke);
+                        painter.line_segment([p_tf - diag, p_tf + diag], stroke);
                     });
                 }
             };
@@ -240,7 +248,7 @@ pub struct Line {
     points: Vec<Pos2>,
     color: Color32,
     weight: f32,
-    area_fill: Option<Color32>,
+    area_fill: Option<(YReference, Color32)>,
 }
 
 impl Line {
@@ -263,8 +271,8 @@ impl Line {
         self
     }
 
-    pub fn area_fill(mut self, color: Color32) -> Self {
-        self.area_fill = Some(color);
+    pub fn area_fill(mut self, reference: YReference, color: Color32) -> Self {
+        self.area_fill = Some((reference, color));
         self
     }
 }
@@ -279,14 +287,17 @@ impl PlotItem for Line {
         } = self;
 
         // TODO: Ew. Make this better.
-        if let Some(fill) = area_fill {
-            points.windows(2).for_each(|w| {
-                let start_down = transform(&pos2(w[0].x, 0.));
-                let end_down = transform(&pos2(w[1].x, 0.));
-
+        if let Some((reference, color)) = area_fill {
+            points.windows(2).enumerate().for_each(|(i, w)| {
+                let y_ref = match &reference {
+                    YReference::Constant(c) => (*c, *c),
+                    YReference::Series(s) => (s[i], s[i + 1]),
+                };
+                let start_down = transform(&pos2(w[0].x, y_ref.0));
+                let end_down = transform(&pos2(w[1].x, y_ref.1));
                 painter.add(Shape::polygon(
                     vec![transform(&w[1]), transform(&w[0]), start_down, end_down],
-                    fill,
+                    color,
                     Stroke::default(),
                 ));
             });

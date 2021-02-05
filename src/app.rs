@@ -1,6 +1,6 @@
 use eframe::{egui::*, epi};
 use eplot::{
-    items::{Line, MarkerShape, Polygon, Quiver, Scatter, Text},
+    items::{Line, MarkerShape, Polygon, Quiver, Scatter, Text, YReference},
     plot::PlotCtx,
 };
 
@@ -65,9 +65,10 @@ impl epi::App for TemplateApp {
                         })
                         .collect();
                     plot_ui.add(
-                        Line::new(points)
-                            .color(Color32::GOLD)
-                            .area_fill(Color32::GOLD.linear_multiply(0.1)),
+                        Line::new(points).color(Color32::GOLD).area_fill(
+                            YReference::Constant(0.),
+                            Color32::GOLD.linear_multiply(0.1),
+                        ),
                     );
 
                     // Scatter
@@ -84,8 +85,7 @@ impl epi::App for TemplateApp {
                             .size(3.)
                             .stroke(Stroke::new(1., Color32::RED))
                             .shape(MarkerShape::Circle)
-                            .stems(true)
-                            .stems_stroke(Stroke::new(1., Color32::WHITE)),
+                            .stems(YReference::Constant(0.), Stroke::new(1., Color32::WHITE)),
                     );
 
                     // Arrow polygon
