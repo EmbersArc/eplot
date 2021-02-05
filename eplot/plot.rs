@@ -44,7 +44,7 @@ impl Default for PlotMemory {
     fn default() -> Self {
         Self {
             last_drag_pos: None,
-            plot_rect: Rect::from_center_size(Pos2::zero(), vec2(10., 10.)),
+            plot_rect: Rect::from_center_size(Pos2::ZERO, vec2(10., 10.)),
             first_run: true,
         }
     }
