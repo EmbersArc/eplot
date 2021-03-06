@@ -398,7 +398,7 @@ impl<'mem> Plot<'mem> {
             }
             loop {
                 let tick_pos_y = i_start as f32 * increment;
-                if tick_pos_y > painter_rect.bottom() {
+                if tick_pos_y > y_axis.range.end {
                     break;
                 }
                 let y_tick = plot_to_screen(&pos2(x_axis.range.start, tick_pos_y));
