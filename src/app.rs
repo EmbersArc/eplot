@@ -36,10 +36,8 @@ impl epi::App for TemplateApp {
                 .plot("TestPlot")
                 .title("eplot showcase")
                 .size(vec2(1280., 720.))
-                .x_axis_label("x-axis label")
-                .y_axis_label("y-axis label") // Not working yet
-                .x_range(-10f32..=10.)
-                .axis_equal(true)
+                .x_axis_range(-10f32..=10.)
+                .y_axis_range(-10f32..=10.)
                 .show(ui, |plot_ui| {
                     // Line
                     [4., 3., 2., 1., 0.5]
@@ -170,7 +168,7 @@ impl epi::App for TemplateApp {
                     // Text
                     plot_ui.add(
                         Text::new(pos2(-12., -6.), "^ Move the cursor here ^")
-                            .anchor(Align2::CENTER_BOTTOM),
+                            .anchor(Align2::CENTER_TOP),
                     );
                 });
         });
