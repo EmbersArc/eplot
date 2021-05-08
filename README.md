@@ -1,3 +1,5 @@
+### Discontinued: Work continues in egui's plotting library: https://github.com/emilk/egui/tree/master/egui/src/widgets/plot
+
 ### eplot: Plotting in egui
 
 This is an initial experiment in bringing plotting capability to [egui](https://github.com/emilk/egui).
